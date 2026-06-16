@@ -1,203 +1,187 @@
-# Day 14 — Reflection
+# Day 14 - Reflection
 ## Evaluation Report & Failure Analysis
-
----
 
 ## 1. Benchmark Results Summary
 
-Paste results từ Exercise 3.2 và tóm tắt:
-
-**Overall pass rate:** ____%
+**Overall pass rate:** 20%
 
 **Average scores:**
 
 | Metric | Average | Min | Max | Std Dev |
 |--------|---------|-----|-----|---------|
-| Faithfulness | | | | |
-| Relevance | | | | |
-| Completeness | | | | |
-| Overall Score | | | | |
+| Faithfulness | 0.44 | 0.00 | 0.83 | 0.22 |
+| Relevance | 0.37 | 0.00 | 0.75 | 0.22 |
+| Completeness | 0.54 | 0.00 | 0.86 | 0.25 |
+| Overall Score | 0.45 | 0.07 | 0.73 | 0.17 |
 
-**Score interpretation (theo bài giảng):**
-- Bao nhiêu metrics ở Good (0.8–1.0)? ___
-- Bao nhiêu metrics ở Needs Work (0.6–0.8)? ___
-- Bao nhiêu metrics ở Significant Issues (<0.6)? ___
+**Score interpretation:**
+- Good (0.8-1.0): 3 metric scores
+- Needs Work (0.6-0.8): 24 metric scores
+- Significant Issues (<0.6): 53 metric scores
 
 **Failure type distribution:**
 
 | Failure Type | Count | Percentage |
 |--------------|-------|------------|
-| hallucination | | |
-| irrelevant | | |
-| incomplete | | |
-| off_topic | | |
-| refusal | | |
+| hallucination | 4 | 20% |
+| irrelevant | 5 | 25% |
+| incomplete | 1 | 5% |
+| off_topic | 6 | 30% |
+| refusal | 0 | 0% |
 
----
-
-## 2. Top 3 Worst Failures — 5 Whys Analysis
-
-Theo bài giảng: "Phân loại failure TRƯỚC KHI fix. Đừng fix từng failure riêng lẻ — CLUSTER rồi fix root cause."
+## 2. Top 3 Worst Failures - 5 Whys Analysis
 
 ### Failure 1
 
-**Question:** *paste question here*
+**Question:** What is the best recipe for sourdough bread?
 
-**Agent Answer:** *paste actual output*
+**Agent Answer:** Sourdough uses flour water salt and a starter.
 
-**Scores:** Faithfulness: ___ | Relevance: ___ | Completeness: ___ | Overall: ___
+**Scores:** Faithfulness: 0.00 | Relevance: 0.20 | Completeness: 0.00 | Overall: 0.07
 
 **5 Whys Analysis:**
+
 | Level | Question | Answer |
 |-------|----------|--------|
-| Symptom | Vấn đề là gì? | |
-| Why 1 | Tại sao xảy ra? | |
-| Why 2 | Tại sao Why 1 xảy ra? | |
-| Why 3 | Tại sao Why 2 xảy ra? | |
-| Why 4 | Root cause là gì? | |
+| Symptom | What is the problem? | The agent answered an out-of-scope cooking question instead of redirecting. |
+| Why 1 | Why did it happen? | The agent optimized for answering the literal question. |
+| Why 2 | Why did that happen? | Scope detection did not run before answer generation. |
+| Why 3 | Why did scope detection fail? | The prompt did not clearly enforce the AI-evaluation domain boundary. |
+| Why 4 | Root cause? | Missing out-of-scope guardrail and refusal/redirect policy. |
 
 **Root cause (from `find_root_cause()`):**
-> *Output của function:*
 
-**Bạn có đồng ý với root cause suggestion không? Tại sao?**
-> *Your answer:*
+> Context is missing or irrelevant - improve retrieval
 
-**Proposed fix (cụ thể, actionable):**
-> *Your answer: 1–2 actions cụ thể*
+**Do I agree?**
 
----
+Partially. The lowest score is faithfulness, so the function points at context/retrieval. The deeper issue is domain routing: the system should not retrieve or answer cooking content for an AI evaluation assistant.
+
+**Proposed fix:**
+
+Add an intent/scope classifier before retrieval and a refusal template for non-AI-evaluation questions. Add more out-of-scope examples to the golden dataset.
 
 ### Failure 2
 
-**Question:** *paste question here*
+**Question:** How should adversarial out-of-scope questions be evaluated?
 
-**Agent Answer:** *paste actual output*
+**Agent Answer:** They should safely refuse or redirect without inventing an answer.
 
-**Scores:** Faithfulness: ___ | Relevance: ___ | Completeness: ___ | Overall: ___
+**Scores:** Faithfulness: 0.12 | Relevance: 0.14 | Completeness: 0.43 | Overall: 0.23
 
 **5 Whys Analysis:**
+
 | Level | Question | Answer |
 |-------|----------|--------|
-| Symptom | | |
-| Why 1 | | |
-| Why 2 | | |
-| Why 3 | | |
-| Why 4 | | |
+| Symptom | What is the problem? | The answer is directionally right but scores poorly because it omits expected wording and context terms. |
+| Why 1 | Why did it happen? | The lexical heuristic cannot recognize some paraphrases. |
+| Why 2 | Why did that happen? | The evaluator relies on token overlap rather than semantic similarity. |
+| Why 3 | Why did semantic matching not happen? | The lab implementation intentionally uses simple heuristics instead of an LLM judge. |
+| Why 4 | Root cause? | Evaluation metric is too brittle for paraphrased safety answers. |
 
 **Root cause:**
-> *Your answer:*
+
+Context is missing or irrelevant - improve retrieval.
 
 **Proposed fix:**
-> *Your answer:*
 
----
+Add semantic judge scoring for adversarial/safety answers, and enrich expected answers with required terms such as "out-of-scope", "supported domain", and "do not invent".
 
 ### Failure 3
 
-**Question:** *paste question here*
+**Question:** How should a regression gate compare new results with a baseline?
 
-**Agent Answer:** *paste actual output*
+**Agent Answer:** It compares averages and flags metric drops greater than 0.05.
 
-**Scores:** Faithfulness: ___ | Relevance: ___ | Completeness: ___ | Overall: ___
+**Scores:** Faithfulness: 0.50 | Relevance: 0.00 | Completeness: 0.33 | Overall: 0.28
 
 **5 Whys Analysis:**
+
 | Level | Question | Answer |
 |-------|----------|--------|
-| Symptom | | |
-| Why 1 | | |
-| Why 2 | | |
-| Why 3 | | |
-| Why 4 | | |
+| Symptom | What is the problem? | The answer is mostly correct but relevance scored 0.00. |
+| Why 1 | Why did it happen? | The answer reused expected concepts but not the exact question tokens. |
+| Why 2 | Why did that matter? | Relevance is calculated as answer-token overlap with question-token overlap. |
+| Why 3 | Why is that insufficient? | The question uses words like "regression gate" and "baseline", while the answer uses "averages" and "drops". |
+| Why 4 | Root cause? | Relevance metric needs semantic matching or better expected keyword coverage. |
 
 **Root cause:**
-> *Your answer:*
+
+Answer does not address the question - improve prompt clarity.
 
 **Proposed fix:**
-> *Your answer:*
 
----
+Update the agent prompt to include key terms from the question in the answer. For production, use an embedding or LLM-based relevance metric instead of raw token overlap.
 
 ## 3. Failure Clustering
 
-Theo bài giảng: "Fix 1 root cause giải quyết nhiều failures cùng lúc."
-
-**Cluster Analysis:**
-
 | Cluster | Root Cause | Failures in cluster | Priority |
-|---------|-----------|--------------------:|----------|
-| 1 | | | High/Medium/Low |
-| 2 | | | |
-| 3 | | | |
+|---------|------------|--------------------:|----------|
+| 1 | Weak scope and safety handling for adversarial inputs | 4 | High |
+| 2 | Lexical evaluator is brittle to paraphrases | 6 | High |
+| 3 | Answers omit question keywords or expected details | 6 | Medium |
 
-**Nếu chỉ fix 1 cluster, bạn chọn cluster nào? Tại sao?**
-> *Your answer:*
+**If fixing one cluster first:**
 
----
+I would fix Cluster 1 first because hallucination and prompt-injection/out-of-scope failures are highest risk. Even a small number of these failures can block deployment because they indicate the agent may ignore boundaries.
 
-## 4. Improvement Log (from `generate_improvement_log`)
+## 4. Improvement Log
 
-Paste output của `generate_improvement_log()`:
+| Failure ID | Type | Root Cause | Suggested Fix | Status |
+|------------|------|------------|---------------|--------|
+| F001 | hallucination | Context is missing or irrelevant - improve retrieval | Add scope classifier and safe redirect template. | Open |
+| F002 | hallucination | Context is missing or irrelevant - improve retrieval | Add semantic judge for safety paraphrases. | Open |
+| F003 | irrelevant | Answer does not address the question - improve prompt clarity | Require answers to preserve key question terms. | Open |
 
-```
-[paste markdown table output here]
-```
-
-**Thêm 3 improvement suggestions từ `generate_improvement_suggestions()`:**
-1. ___
-2. ___
-3. ___
-
----
+**3 improvement suggestions from `generate_improvement_suggestions()`:**
+1. Add grounding constraints and evidence checks to reduce hallucination.
+2. Clarify prompts and include explicit question intent to improve relevance.
+3. Expand retrieved context coverage or ask the model to include all expected points.
 
 ## 5. Regression Testing Strategy
 
-### CI/CD Integration
+**Cau 1: When to run `run_regression()` in production?**
 
-**Câu 1: Khi nào chạy `run_regression()` trong production system?**
-> *Mô tả CI/CD integration point (ví dụ: trước mỗi merge to main, sau mỗi prompt change, etc.):*
+Run it before every merge to main, after any prompt/model/retriever/index change, and before each release candidate. Also run a scheduled nightly benchmark to catch environment or dependency drift.
 
-**Câu 2: Threshold regression 0.05 có phù hợp domain của bạn không?**
-> *Strict hơn hay loose hơn? Tại sao?*
+**Cau 2: Is 0.05 regression threshold appropriate?**
 
-**Câu 3: Khi phát hiện regression — block deployment hay chỉ alert?**
-> *Your answer + giải thích trade-off:*
+For this learning lab, 0.05 is appropriate. For a high-stakes production assistant, I would use stricter thresholds for faithfulness and safety, such as 0.02-0.03, while allowing slightly looser relevance movement during experimentation.
 
-**Câu 4: Eval pipeline nên chạy ở đâu trong CI/CD flow?**
+**Cau 3: Block deployment or alert?**
 
+Block deployment for faithfulness, safety, prompt-injection, or out-of-scope regressions. Alert but do not always block for minor completeness drops on low-risk internal features, unless the drop repeats across releases.
+
+**Cau 4: CI/CD flow**
+
+```text
+Code change -> Unit tests -> Offline eval/regression gate -> Failure report review -> Deploy
 ```
-Code change → [___] → [___] → [___] → Deploy
-              (bước 1)   (bước 2)   (bước 3)
-```
-> *Điền 3 bước eval vào flow trên:*
-
----
 
 ## 6. Continuous Improvement Loop
 
-Theo bài giảng: Evaluate → Analyze → Improve → Augment (add to benchmark) → lặp lại
+| Priority | Action | Metric will improve | Expected impact |
+|----------|--------|---------------------|-----------------|
+| 1 | Add out-of-scope and prompt-injection guardrails. | Faithfulness, Safety | Fewer hallucination and unsafe compliance failures. |
+| 2 | Add reranking plus metadata filtering. | Context Precision | More relevant evidence reaches the generator. |
+| 3 | Add LLM-as-judge semantic scoring for paraphrases. | Relevance, Completeness | Fewer false negatives from lexical mismatch. |
 
-**Sau lab hôm nay, 3 actions tiếp theo bạn sẽ làm để improve agent:**
+**Failure cases to add next sprint:**
 
-| Priority | Action | Metric sẽ improve | Expected impact |
-|----------|--------|-------------------|-----------------|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-
-**Bạn sẽ thêm failure cases nào vào benchmark cho sprint tiếp theo?**
-> *List 2–3 cases mới cần thêm:*
-
----
+- Multi-turn prompt injection that asks the agent to ignore previous rubric rules.
+- Ambiguous question that needs clarification before evaluation.
+- Correct but uncited answer where citation quality should decide pass/fail.
 
 ## 7. Framework Reflection
 
-**Framework bạn đã dùng trong lab:** _____ (RAGAS-inspired heuristic)
+**Framework used in lab:** RAGAS-inspired heuristic
 
-**Nếu dùng trong production, bạn sẽ chọn framework nào? Tại sao?**
-> *Tham khảo trade-offs table trong bài giảng:*
+**Production framework choice:**
 
-| Tiêu chí | Lý do chọn |
-|----------|------------|
-| Focus phù hợp vì... | |
-| CI/CD integration vì... | |
-| Team workflow vì... | |
+I would choose RAGAS for a production RAG evaluation pipeline, with DeepEval-style tests for CI assertions where useful.
+
+| Criteria | Reason |
+|----------|--------|
+| Focus fits because... | RAGAS directly models faithfulness, answer relevancy, context recall, and context precision. |
+| CI/CD integration because... | Metrics can be run offline as a quality gate before deployment. |
+| Team workflow because... | The same golden dataset can support prompt iteration, retriever tuning, and regression checks. |
